@@ -5,13 +5,13 @@ from typing import Tuple
 try :
 	from ufldDetector.utils import LaneModelType, OffsetType, lane_colors
 	from TrafficLaneDetector.ufldDetector.core import LaneDetectBase
-	from coreEngine import TensorRTEngine, OnnxEngine
+	from coreEngine import OnnxEngine
 except :
 	import sys
 	from .utils import LaneModelType, OffsetType, lane_colors
 	from .core import LaneDetectBase
 	sys.path.append("..")
-	from coreEngine import TensorRTEngine, OnnxEngine
+	from coreEngine import OnnxEngine
 
 class ModelConfig():
 
@@ -62,10 +62,7 @@ class UltrafastLaneDetector(LaneDetectBase):
 		if (self.logger) :
 			self.logger.debug("model path: %s." % model_path)
 
-		if model_path.endswith('.trt') :
-			self.engine = TensorRTEngine(model_path)
-		else :
-			self.engine = OnnxEngine(model_path)
+		self.engine = OnnxEngine(model_path)
 
 		if (self.logger) :
 			self.logger.info(f'UfldDetector Type : [{self.engine.framework_type}] || Version : {self.engine.providers}')

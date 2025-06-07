@@ -6,10 +6,10 @@ from ObjectDetector.utils import CollisionType
 from TrafficLaneDetector.ufldDetector.utils import OffsetType, CurvatureType
 
 STD_OUTPUT_HANDLE= -11
-std_out_handle = ctypes.windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
-def set_color(color, handle=std_out_handle):
-	bool = ctypes.windll.kernel32.SetConsoleTextAttribute(handle, color)
-	return bool
+# std_out_handle = ctypes.windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
+def set_color(color, handle=None):
+	# bool = ctypes.windll.kernel32.SetConsoleTextAttribute(handle, color)
+	return None
 
 class LimitedList(list):
 	def __init__(self, maxlen):

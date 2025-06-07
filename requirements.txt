@@ -1,14 +1,15 @@
-addict
-numpy==1.22.1
+numpy==1.23
 numba
 lap
 scipy
-pycuda==2021.1
+addict
+torch==1.11.0
+torchvision==0.12.0
+torchaudio==0.11.0
+onnx
+onnxruntime==1.17.3
+opencv-python
+matplotlib
+pandas
+ultralytics==8.3.150
 torchsummary
-onnx==1.12.0
-onnxruntime==1.12.0
-opencv-python==4.5.4.60
-torch==1.11.0+cu113 
-torchvision==0.12.0+cu113 
-torchaudio==0.11.0 
---extra-index-url https://download.pytorch.org/whl/cu113

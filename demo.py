@@ -1,7 +1,7 @@
 import cv2, time
 import numpy as np
 import logging
-import pycuda.driver as drv
+# import pycuda.driver as drv
 
 from ObjectTracker import BYTETracker
 from taskConditions import TaskConditions, Logger
@@ -14,15 +14,16 @@ from TrafficLaneDetector.ufldDetector.perspectiveTransformation import Perspecti
 from TrafficLaneDetector.ufldDetector.utils import LaneModelType, OffsetType, CurvatureType
 LOGGER = Logger(None, logging.INFO, logging.INFO )
 
-video_path = "./TrafficLaneDetector/temp/demo-7.mp4"
+video_path = "./models/example.mp4"
 lane_config = {
-	"model_path": "./TrafficLaneDetector/models/culane_res18_fp16.trt",
-	"model_type" : LaneModelType.UFLDV2_CULANE
+	# "model_path": "./models/ufldv2_tusimple_res18_320x800.onnx",
+    "model_path": "./models/resources/ufldv2_curvelanes_res18_800x1600.onnx",
+	"model_type" : LaneModelType.UFLDV2_TUSIMPLE
 }
 
 object_config = {
-	"model_path": './ObjectDetector/models/yolov10n-coco_fp16.trt',
-	"model_type" : ObjectModelType.YOLOV10,
+	"model_path": './models/yolov8l.onnx',
+	"model_type" : ObjectModelType.YOLOV8,
 	"classes_path" : './ObjectDetector/models/coco_label.txt',
 	"box_score" : 0.4,
 	"box_nms_iou" : 0.5
@@ -218,38 +219,37 @@ if __name__ == "__main__":
 
 	# Initialize read and save video 
 	cap = cv2.VideoCapture(video_path)
-	if (not cap.isOpened()) :
+	if not cap.isOpened():
 		raise Exception("video path is error. please check it.")
-	width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) 
+	width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 	height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 	fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-	vout = cv2.VideoWriter(video_path[:-4]+'_out.mp4', fourcc , 30.0, (width, height))
-	cv2.namedWindow("ADAS Simulation", cv2.WINDOW_NORMAL)	
+	vout = cv2.VideoWriter(video_path[:-4]+'_out.mp4', fourcc, 30.0, (width, height))
 	
-	#==========================================================
-	#					Initialize Class
-	#==========================================================
-	LOGGER.info("[Pycuda] Cuda Version: {}".format(drv.get_version()))
-	LOGGER.info("[Driver] Cuda Version: {}".format(drv.get_driver_version()))
+	# ==========================================================
+	#                   Initialize Class
+	# ==========================================================
+	# LOGGER.info("[Pycuda] Cuda Version: {}".format(drv.get_version()))
+	# LOGGER.info("[Driver] Cuda Version: {}".format(drv.get_driver_version()))
 	LOGGER.info("-"*40)
 
 	# lane detection model
 	LOGGER.info("Detector Model Type : {}".format(lane_config["model_type"].name))
-	if ( "UFLDV2" in lane_config["model_type"].name) :
+	if "UFLDV2" in lane_config["model_type"].name:
 		UltrafastLaneDetectorV2.set_defaults(lane_config)
 		laneDetector = UltrafastLaneDetectorV2(logger=LOGGER)
-	else :
+	else:
 		UltrafastLaneDetector.set_defaults(lane_config)
 		laneDetector = UltrafastLaneDetector(logger=LOGGER)
-	transformView = PerspectiveTransformation( (width, height) , logger=LOGGER)
+	transformView = PerspectiveTransformation((width, height), logger=LOGGER)
 
 	# object detection model
 	LOGGER.info("ObjectDetector Model Type : {}".format(object_config["model_type"].name))
-	if ( ObjectModelType.EfficientDet == object_config["model_type"]):
+	if ObjectModelType.EfficientDet == object_config["model_type"]:
 		EfficientdetDetector.set_defaults(object_config)
 		objectDetector = EfficientdetDetector(logger=LOGGER)
-	else :
+	else:
 		YoloDetector.set_defaults(object_config)
 		objectDetector = YoloDetector(logger=LOGGER)
 	distanceDetector = SingleCamDistanceMeasure()
@@ -258,46 +258,52 @@ if __name__ == "__main__":
 	# display panel
 	displayPanel = ControlPanel()
 	analyzeMsg = TaskConditions()
+	
+	frame_count = 0
+	total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+	LOGGER.info(f"开始处理视频，总帧数: {total_frames}")
+	
 	while cap.isOpened():
 
-		ret, frame = cap.read() # Read frame from the video
-		if ret:	
+		ret, frame = cap.read()  # Read frame from the video
+		if ret:
 			frame_show = frame.copy()
 
-			#========================== Detect Model =========================
+			# ========================== Detect Model =========================
 			obect_time = time.time()
 			objectDetector.DetectFrame(frame)
 			obect_infer_time = round(time.time() - obect_time, 2)
 
-			if objectTracker :
-				box   = [obj.tolist(format_type= "xyxy") for obj in objectDetector.object_info]
+			if objectTracker:
+				box = [obj.tolist(format_type="xyxy") for obj in objectDetector.object_info]
 				score = [obj.conf for obj in objectDetector.object_info]
-				id    = [obj.label for  obj in objectDetector.object_info]
-				# id    = [objectDetector.class_names.index(obj.label) for  obj in objectDetector.object_info]
+				id = [obj.label for obj in objectDetector.object_info]
+				# id = [objectDetector.class_names.index(obj.label) for obj in objectDetector.object_info]
 				objectTracker.update(box, score, id, frame)
 
 			lane_time = time.time()
 			laneDetector.DetectFrame(frame)
 			lane_infer_time = round(time.time() - lane_time, 4)
 
-			#========================= Analyze Status ========================
+			# ========================= Analyze Status ========================
 			distanceDetector.updateDistance(objectDetector.object_info)
 			vehicle_distance = distanceDetector.calcCollisionPoint(laneDetector.lane_info.area_points)
 
-			if (analyzeMsg.CheckStatus() and laneDetector.lane_info.area_status ) :
+			if (analyzeMsg.CheckStatus() and laneDetector.lane_info.area_status):
 				transformView.updateTransformParams(*laneDetector.lane_info.lanes_points[1:3], analyzeMsg.transform_status)
 			birdview_show = transformView.transformToBirdView(frame_show)
 
 			birdview_lanes_points = [transformView.transformToBirdViewPoints(lanes_point) for lanes_point in laneDetector.lane_info.lanes_points]
-			(vehicle_direction, vehicle_curvature) , vehicle_offset = transformView.calcCurveAndOffset(birdview_show, *birdview_lanes_points[1:3])
+			(vehicle_direction, vehicle_curvature), vehicle_offset = transformView.calcCurveAndOffset(birdview_show, *birdview_lanes_points[1:3])
 
 			analyzeMsg.UpdateCollisionStatus(vehicle_distance, laneDetector.lane_info.area_status)
 			analyzeMsg.UpdateOffsetStatus(vehicle_offset)
 			analyzeMsg.UpdateRouteStatus(vehicle_direction, vehicle_curvature)
 
-			#========================== Draw Results =========================
+			# ========================== Draw Results =========================
 			transformView.DrawDetectedOnBirdView(birdview_show, birdview_lanes_points, analyzeMsg.offset_msg)
-			if (LOGGER.clevel == logging.DEBUG) : transformView.DrawTransformFrontalViewArea(frame_show)
+			if LOGGER.clevel == logging.DEBUG:
+				transformView.DrawTransformFrontalViewArea(frame_show)
 			laneDetector.DrawDetectedOnFrame(frame_show, analyzeMsg.offset_msg)
 			laneDetector.DrawAreaOnFrame(frame_show, displayPanel.CollisionDict[analyzeMsg.collision_msg])
 			objectDetector.DrawDetectedOnFrame(frame_show)
@@ -305,16 +311,20 @@ if __name__ == "__main__":
 			distanceDetector.DrawDetectedOnFrame(frame_show)
 
 			displayPanel.DisplayBirdViewPanel(frame_show, birdview_show)
-			displayPanel.DisplaySignsPanel(frame_show, analyzeMsg.offset_msg, analyzeMsg.curvature_msg)	
-			displayPanel.DisplayCollisionPanel(frame_show, analyzeMsg.collision_msg, obect_infer_time, lane_infer_time )
-			cv2.imshow("ADAS Simulation", frame_show)
+			displayPanel.DisplaySignsPanel(frame_show, analyzeMsg.offset_msg, analyzeMsg.curvature_msg)
+			displayPanel.DisplayCollisionPanel(frame_show, analyzeMsg.collision_msg, obect_infer_time, lane_infer_time)
+			
+			# 写入输出视频文件
+			vout.write(frame_show)
+			
+			frame_count += 1
+			if frame_count % 30 == 0:  # 每30帧打印一次进度
+				progress = (frame_count / total_frames) * 100
+				LOGGER.info(f"处理进度: {frame_count}/{total_frames} ({progress:.1f}%)")
 
 		else:
-			break
-		vout.write(frame_show)	
-		if cv2.waitKey(1) == ord('q'): # Press key q to stop
 			break
 
 	vout.release()
 	cap.release()
-	cv2.destroyAllWindows()
+	LOGGER.info(f"视频处理完成，输出文件: {video_path[:-4]}_out.mp4")

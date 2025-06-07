@@ -9,11 +9,11 @@ try :
 	from utils import ObjectModelType, hex_to_rgb, NMS, Scaler
 	from core import ObjectDetectBase, RectInfo
 	sys.path.append("..")
-	from coreEngine import TensorRTEngine, OnnxEngine
+	from coreEngine import OnnxEngine
 except :
 	from .utils import ObjectModelType, hex_to_rgb, NMS, Scaler
 	from .core import ObjectDetectBase, RectInfo
-	from coreEngine import TensorRTEngine, OnnxEngine
+	from coreEngine import OnnxEngine
 
 class YoloLiteParameters():
 	def __init__(self, model_type, input_shape, num_classes):
@@ -71,10 +71,7 @@ class YoloDetector(ObjectDetectBase, YoloLiteParameters):
 		if (self.logger) :
 			self.logger.debug("model path: %s." % model_path)
 
-		if model_path.endswith('.trt') :
-			self.engine = TensorRTEngine(model_path)
-		else :
-			self.engine = OnnxEngine(model_path)
+		self.engine = OnnxEngine(model_path)
 
 		if (self.logger) :
 			self.logger.info(f'YoloDetector Type : [{self.engine.framework_type}] || Version : [{self.engine.providers}]')

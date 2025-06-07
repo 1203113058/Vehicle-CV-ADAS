@@ -4,13 +4,13 @@ from typing import Tuple
 try :
 	from ufldDetector.utils import LaneModelType, OffsetType, lane_colors
 	from TrafficLaneDetector.ufldDetector.core import LaneDetectBase
-	from coreEngine import TensorRTEngine, OnnxEngine
+	from coreEngine import OnnxEngine
 except :
 	import sys
 	from .utils import LaneModelType, OffsetType, lane_colors
 	from .core import LaneDetectBase
 	sys.path.append("..")
-	from coreEngine import TensorRTEngine, OnnxEngine
+	from coreEngine import OnnxEngine
 
 def _softmax(x) :
 	# Note : 防止 overflow and underflow problem
@@ -79,10 +79,7 @@ class UltrafastLaneDetectorV2(LaneDetectBase):
 		if (self.logger) :
 			self.logger.debug("model path: %s." % model_path)
 
-		if model_path.endswith('.trt') :
-			self.engine = TensorRTEngine(model_path)
-		else :
-			self.engine = OnnxEngine(model_path)
+		self.engine = OnnxEngine(model_path)
 
 		if (self.logger) :
 			self.logger.info(f'UfldDetectorV2 Type : [{self.engine.framework_type}] || Version : [{self.engine.providers}]')
